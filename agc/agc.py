@@ -46,6 +46,53 @@ def isfile(path):
         raise argparse.ArgumentTypeError(msg)
     return path
 
+# 1) Dé-duplication en séquence “complète”
+def read_fasta(amplicon_file, minseqlen):
+
+    with open(amplicon_file, "r") as f_fasta:
+
+        for ligne in f_fasta:
+
+            if not ligne.startswith(">"):
+
+                if len(ligne) >= minseqlen:
+
+                    yield ligne
+
+
+
+def dereplication_fulllength(amplicon_file, minseqlen, mincount):
+
+    list_seq = read_fasta(amplicon_file, minseqlen)
+    dico_seq = {}
+
+    for seq in list_seq:
+
+        if seq not in dico_seq:
+            dico_seq[seq] = 1
+
+        else :
+            dico_seq[seq] += 1
+
+    for sequence, count in sorted(dico_seq.items(), key=lambda item: item[1], reverse = True):
+
+        if seq_count >= mincount:
+            yield [sequence, count]
+
+# 2) Recherche de séquences chimériques par approche “de novo”
+def get_chunks(sequence, chunk_size):
+	list_seg =[]
+
+
+	for i in (range(0, len(sequence) , chunk_size)):
+		if i+chunk_size<=len(sequence):
+			list_seg.append(sequence[i:i+chunk_size])
+	if len(list_seg)>=4:
+		return list_seg
+
+def cut_kmer(sequence, kmer_size):
+	for k in (range(len(sequence)-kmer_size+1)):
+		yield sequence[k:kmer_size]
 
 def get_arguments():
     """Retrieves the arguments of the program.
@@ -68,6 +115,7 @@ def get_arguments():
     parser.add_argument('-o', '-output_file', dest='output_file', type=str,
                         default="OTU.fasta", help="Output file")
     return parser.parse_args()
+
 
 #==============================================================
 # Main program
