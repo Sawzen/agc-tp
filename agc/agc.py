@@ -157,8 +157,66 @@ def get_identity(alignment_list):
 def detect_chimera(perc_identity_matrix):
 	"""
 	"""
-	
+	som_et = 0
+	seq1 = False
+	seq2 = False
 
+	for i in range(len(perc_identity_matrix)):
+		som_et += statistics.stdev(perc_identity_matrix[i])
+		if perc_identity_matrix[i][0] > perc_identity_matrix[i][1]:
+			seq1 = True
+		if perc_identity_matrix[i][0] < perc_identity_matrix[i][1]:
+			seq2 = True
+	if som_et/len(perc_identity_matrix) > 5 and seq1 and seq2:
+		return True
+	else :
+		return False
+
+def common(lst1, lst2): 
+    return list(set(lst1) & set(lst2))
+
+
+def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
+	"""
+	"""
+	dfr_lst = dereplication_fulllength(amplicon_file, minseqlen, mincount)
+
+	for l in dfr_lst:
+		chunks = get_chunks(l[0], chunk_size)
+
+        chunk_mates = []
+        for seq in chunks:
+            mates = search_mates(kmer_dict, seq, kmer_size)
+            chunk_mates.append(mates)
+        com = []
+
+        for j in range(len(chunk_mates)):
+            com = common(com, chunk_mates[j])
+
+        if len(com) > 1:
+            for f in com[0:2]:
+                sequ = get_chunks(no_chimere[f], chunk_size)
+                perc_identity_matrix = [[]]
+                for k, chunk in enumerate(chunks):
+                    align = nw.global_align(chunk, sequ[k])
+                    identite =  get_identity(align)
+                    perc_identity_matrix[k].append(identite)
+            chimera = detect_chimera(perc_identity_matrix)
+
+		if not detect_chimera(perc_identity_matrix):
+			yield l
+
+
+def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
+	"""
+	"""
+	pass
+
+
+def write_OTU(OTU_list, output_file):
+	"""
+	"""
+	pass
 
 #==============================================================
 # Main program
