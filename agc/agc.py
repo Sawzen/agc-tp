@@ -21,7 +21,7 @@ import statistics
 from collections import Counter
 # https://github.com/briney/nwalign3
 # ftp://ftp.ncbi.nih.gov/blast/matrices/
-import nwalign3 as nw
+#import nwalign3 as nw
 
 __author__ = "Your Name"
 __copyright__ = "Universite Paris Diderot"
@@ -71,8 +71,8 @@ def get_arguments():
 
 # 1) Dé-duplication en séquence “complète”
 def read_fasta(amplicon_file, minseqlen):
-	"""
-	"""
+    """
+    """
 
     with open(amplicon_file, "r") as f_fasta:
 
@@ -87,8 +87,8 @@ def read_fasta(amplicon_file, minseqlen):
 
 
 def dereplication_fulllength(amplicon_file, minseqlen, mincount):
-	"""
-	"""
+    """
+    """
 
     list_seq = read_fasta(amplicon_file, minseqlen)
     dico_seq = {}
@@ -103,86 +103,88 @@ def dereplication_fulllength(amplicon_file, minseqlen, mincount):
 
     for sequence, count in sorted(dico_seq.items(), key=lambda item: item[1], reverse = True):
 
-        if seq_count >= mincount:
+        if count >= mincount:
             yield [sequence, count]
 
 # 2) Recherche de séquences chimériques par approche “de novo”
 
 def get_chunks(sequence, chunk_size):
-	list_seg =[]
+    list_seg =[]
 
 
-	for i in (range(0, len(sequence) , chunk_size)):
-		if i+chunk_size<=len(sequence):
-			list_seg.append(sequence[i:i+chunk_size])
-	if len(list_seg)>=4:
-		return list_seg
+    for i in (range(0, len(sequence) , chunk_size)):
+        if i+chunk_size<=len(sequence):
+            list_seg.append(sequence[i:i+chunk_size])
+    if len(list_seg)>=4:
+        return list_seg
 
 def cut_kmer(sequence, kmer_size):
-	for k in (range(len(sequence)-kmer_size+1)):
-		yield sequence[k:kmer_size]
+    for k in (range(len(sequence)-kmer_size+1)):
+        yield sequence[k:kmer_size]
 
 def get_unique_kmer(kmer_dict, sequence, id_seq, kmer_size):
-	"""
-	"""
+    """
+    """
 
-	list_kmer = cut_kmer(sequence, kmer_size)
+    list_kmer = cut_kmer(sequence, kmer_size)
 
-	for kmer in list_kmer:
+    for kmer in list_kmer:
 
-		if kmer in kmer_dict:
-			kmer_dict[kmer].append(id_seq)
-		else :
-			kmer_dict[kmer] = [id_seq]
-	return kmer_dict
+        if kmer in kmer_dict:
+            kmer_dict[kmer].append(id_seq)
+        else :
+            kmer_dict[kmer] = [id_seq]
+    return kmer_dict
 
     
 
 def search_mates(kmer_dict, sequence, kmer_size):
-	"""
-	"""
+    """
+    """
 
-	return[i[0] for i in Counter([ids for kmer in cut_kmer(sequence, kmer_size) if kmer in kmer_dict for ids in kmer_dict[kmer]]).most_common(8)]
+    return[i[0] for i in Counter([ids for kmer in cut_kmer(sequence, kmer_size) if kmer in kmer_dict for ids in kmer_dict[kmer]]).most_common(8)]
 
 
 def get_identity(alignment_list):
-	"""
-	"""
-	nb_nuc_id = 0
-	for i in range(len(alignment_list[0])):
-		if alignment_list[0][i] == alignment_list[1][i]:
-			nb_nuc_id += 1
-	return nb_nuc_id/len(alignment_list[0])
+    """
+    """
+    nb_nuc_id = 0
+    for i in range(len(alignment_list[0])):
+        if alignment_list[0][i] == alignment_list[1][i]:
+            nb_nuc_id += 1
+    return nb_nuc_id/len(alignment_list[0])
 
 def detect_chimera(perc_identity_matrix):
-	"""
-	"""
-	som_et = 0
-	seq1 = False
-	seq2 = False
+    """
+    """
+    som_et = 0
+    seq1 = False
+    seq2 = False
 
-	for i in range(len(perc_identity_matrix)):
-		som_et += statistics.stdev(perc_identity_matrix[i])
-		if perc_identity_matrix[i][0] > perc_identity_matrix[i][1]:
-			seq1 = True
-		if perc_identity_matrix[i][0] < perc_identity_matrix[i][1]:
-			seq2 = True
-	if som_et/len(perc_identity_matrix) > 5 and seq1 and seq2:
-		return True
-	else :
-		return False
+    for i in range(len(perc_identity_matrix)):
+        som_et += statistics.stdev(perc_identity_matrix[i])
+        if perc_identity_matrix[i][0] > perc_identity_matrix[i][1]:
+            seq1 = True
+        if perc_identity_matrix[i][0] < perc_identity_matrix[i][1]:
+            seq2 = True
+    if som_et/len(perc_identity_matrix) > 5 and seq1 and seq2:
+        return True
+    else :
+        return False
 
 def common(lst1, lst2): 
     return list(set(lst1) & set(lst2))
 
 
 def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-	"""
-	"""
-	dfr_lst = dereplication_fulllength(amplicon_file, minseqlen, mincount)
+    """
+    """
+    dfr_lst = dereplication_fulllength(amplicon_file, minseqlen, mincount)
+    kmer_dict = {}
+    perc_identity_matrix = []
 
-	for l in dfr_lst:
-		chunks = get_chunks(l[0], chunk_size)
+    for l in dfr_lst:
+        chunks = get_chunks(l[0], chunk_size)
 
         chunk_mates = []
         for seq in chunks:
@@ -203,20 +205,31 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
                     perc_identity_matrix[k].append(identite)
             chimera = detect_chimera(perc_identity_matrix)
 
-		if not detect_chimera(perc_identity_matrix):
-			yield l
+        if not detect_chimera(perc_identity_matrix):
+            yield l
 
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-	"""
-	"""
-	pass
+    """
+    """
+    OTU = []
+
+    lst = [chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size)]
+
+    for seq, count in lst:
+        OTU.append([seq, count])
+
+    return OTU
 
 
 def write_OTU(OTU_list, output_file):
-	"""
-	"""
-	pass
+    """
+    """
+    with open(output_file, "w") as f:
+        for i, o in enumerate(OTU_list):
+            f.write(">OTU_{"+str(i+1)+"} occurence:{"+str(o[1])+"}\n"+o[0])
+
+
 
 #==============================================================
 # Main program
@@ -227,6 +240,8 @@ def main():
     """
     # Get arguments
     args = get_arguments()
+    OTU_cluster = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount, args.chunk_size, args.kmer_size)
+    write_OTU(OTU_cluster, args.output_file)
 
 
 if __name__ == '__main__':
