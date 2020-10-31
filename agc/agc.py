@@ -69,6 +69,97 @@ def get_arguments():
                         default="OTU.fasta", help="Output file")
     return parser.parse_args()
 
+# 1) Dé-duplication en séquence “complète”
+def read_fasta(amplicon_file, minseqlen):
+	"""
+	"""
+
+    with open(amplicon_file, "r") as f_fasta:
+
+        for ligne in f_fasta:
+
+            if not ligne.startswith(">"):
+
+                if len(ligne) >= minseqlen:
+
+                    yield ligne
+
+
+
+def dereplication_fulllength(amplicon_file, minseqlen, mincount):
+	"""
+	"""
+
+    list_seq = read_fasta(amplicon_file, minseqlen)
+    dico_seq = {}
+
+    for seq in list_seq:
+
+        if seq not in dico_seq:
+            dico_seq[seq] = 1
+
+        else :
+            dico_seq[seq] += 1
+
+    for sequence, count in sorted(dico_seq.items(), key=lambda item: item[1], reverse = True):
+
+        if seq_count >= mincount:
+            yield [sequence, count]
+
+# 2) Recherche de séquences chimériques par approche “de novo”
+
+def get_chunks(sequence, chunk_size):
+	list_seg =[]
+
+
+	for i in (range(0, len(sequence) , chunk_size)):
+		if i+chunk_size<=len(sequence):
+			list_seg.append(sequence[i:i+chunk_size])
+	if len(list_seg)>=4:
+		return list_seg
+
+def cut_kmer(sequence, kmer_size):
+	for k in (range(len(sequence)-kmer_size+1)):
+		yield sequence[k:kmer_size]
+
+def get_unique_kmer(kmer_dict, sequence, id_seq, kmer_size):
+	"""
+	"""
+
+	list_kmer = cut_kmer(sequence, kmer_size)
+
+	for kmer in list_kmer:
+
+		if kmer in kmer_dict:
+			kmer_dict[kmer].append(id_seq)
+		else :
+			kmer_dict[kmer] = [id_seq]
+	return kmer_dict
+
+    
+
+def search_mates(kmer_dict, sequence, kmer_size):
+	"""
+	"""
+
+	return[i[0] for i in Counter([ids for kmer in cut_kmer(sequence, kmer_size) if kmer in kmer_dict for ids in kmer_dict[kmer]]).most_common(8)]
+
+
+def get_identity(alignment_list):
+	"""
+	"""
+	nb_nuc_id = 0
+	for i in range(len(alignment_list[0])):
+		if alignment_list[0][i] == alignment_list[1][i]:
+			nb_nuc_id += 1
+	return nb_nuc_id/len(alignment_list[0])
+
+def detect_chimera(perc_identity_matrix):
+	"""
+	"""
+	
+
+
 #==============================================================
 # Main program
 #==============================================================
